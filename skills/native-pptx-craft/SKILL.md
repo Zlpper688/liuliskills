@@ -42,6 +42,11 @@ agent_created: true
 6. **导出**：`$DECK "$S/svg_to_pptx.py" . -o dist/名.pptx -f ppt169 --quick-generate --animation-config animations.json`
 7. **XML 级验收**（见下"验收纪律"）。
 8. **OPC + 交付检查**：`pptx_opc_validation.py`（exit 0）+ `pptx_delivery_check.py`（errors:[] advisories:[]）。
+9. **讲稿与可编辑性审计**：每页补 3–5 句讲稿进 speaker notes（可再经 ppt-master 转 TTS 旁白）；按"压平试纸"审计——标题/数字/图三样能独立改 = 未压平，要数据联动则走 `--native-charts-and-tables`。
+
+## 动画与转场的真实弹药库（多数工作流只用了一成）
+
+注册表 `pptx_animation_presets.json`：**53 入场 + 33 强调 + 64 路径 + 53 退出 = 203 种原生动画**，外加 **58 种转场（含 morph）**。"变黄/高亮"用强调类（`emphasis_change_fill_color`），"沿轨迹移动"用路径类（`path_circle`），真正的插入动画需要退出类配合。`effect_options` 逐效果严格校验，新效果先跑最小 PoC 读回 XML 再上正稿。详见 references/pipeline-and-pitfalls.md §2。
 
 ## 验收纪律（不看"导出成功"四个字，看 XML 真相）
 
@@ -58,6 +63,13 @@ agent_created: true
 - 深色底上放浅色小标签 = 白色补丁穿帮；改用图例。
 - Windows 上 PowerPoint 开着旧文件（`~$` 锁 + POWERPNT 进程）会让同名导出 WinError 32 —— 换名导出，别杀进程。
 - 编辑框架代码后必须 grep 复验关键行真的落盘（"编辑成功" ≠ 内容落盘；一个悬空 else 曾让整页丢背景矩形）。
+- quick-generate 读 `svg_output/`（非 svg_final/），且强制要求 final 质检报告。
+
+## 对标定位（2026-11 调研，详见 references/pipeline-and-pitfalls.md §7）
+
+- **vs Gamma/Canva/Copilot**：它们是预设转场，动效导出即蒸发；本管线做的是**原生逐对象动画编排**，这才是"想要动画又想要 .pptx"的唯一路线。
+- **vs "LLM 直接写 python-pptx 代码"的生成器**：本管线框架是确定性手写代码，只有内容是生成的——无代码注入、可复现、可增量修改。
+- **何时不用本管线**：要数据绑定的原生图表 → `--native-charts-and-tables` 路线；改别人的 .pptx → Anthropic pptx 的 XML 增量编辑；纯网页演示 → Slidev。SmartArt/宏/嵌入视频不支持。
 
 ## Resources
 

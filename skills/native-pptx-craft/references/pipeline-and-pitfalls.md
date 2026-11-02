@@ -58,9 +58,19 @@ node build/render.cjs                                      # → preview/*.png
 
 要点：
 - `trigger` 取值：缺省（自动，首组）/ `after-previous` / `on-click` / `with-previous`。
-- 已验证可用 effect：`entrance_fade / fly / wipe / rise_up / faded_zoom / glide / appear / expand`。
-- **`entrance_fly`/`entrance_wipe` 支持 `direction`；`entrance_glide` 不支持 direction**（配了会校验报错）。
+- **效果全集 = 203 种原生动画**（注册表：`$S/pptx_animation_presets.json`，key 为 snake_case）：
+  - 53 入场（`entrance_fade / fly / wipe / rise_up / faded_zoom / glide / appear / expand / zoom / dissolve / circle / box / diamond / wheel …`）
+  - **33 强调**（`emphasis_change_fill_color / grow_shrink / spin / transparency / pulse / shimmer …`）——"变黄""高亮""放大"这类语义，用强调类比"退出再入场"干净得多
+  - **64 路径**（`path_circle / path_right_triangle / path_diamond …`）——元素沿轨迹移动
+  - **53 退出**（`exit_fade / fly / dissolve …`）——真正的"插入动画"需要它：旧行退出 + 新行入场
+- **`effect_options` 按效果严格校验，名字错一个字都导不出**（如 `emphasis_change_fill_color` 的颜色选项叫 `color`，不叫 `amount`——报错时会列出该效果支持的全部选项名）；`entrance_fly`/`entrance_wipe` 支持 `direction`，`entrance_glide` 不支持 direction。**动用没验证过的效果前，先跑一次最小 PoC 读回 XML**（presetClass：entr/emph/path/exit；presetID 与 manifest 的 preset_id 一致）。
 - 先跑 `$DECK "$S/animation_config.py" validate <项目目录>` 自检（输出 "Animation config validated successfully." / "全部匹配"）。
+
+### 转场（slides[].transition）
+
+- 支持 **58 种 PowerPoint 原生转场**：`morph / fade / push / wipe / reveal / split / cut / uncover / cover / cube / zoom / flip / orbit / fly_through / dissolve / checkerboard / …`（完整列表：`pptx_animations.get_available_transitions()`）。
+- **morph**（平滑）是最值得用的一个：写入 `<p159:morph option="byObject"/>`，两页间的同名/同形状对象会自动补间。用法：把"变化前/变化后"拆成两页，两页里放**同 id、同几何近似的对象**，其余对象不动——得到 Copilot "Morph-ready 版式"的效果。
+- 其余转场一页配一次即可；答辩场景建议全片统一 1–2 种，别一页一个花样。
 
 ## 3. SVG 编写契约（ppt-master shared-standards-core 要点）
 
@@ -105,3 +115,42 @@ presetClass/presetID 速查：entr/10 淡入、entr/22 擦除、entr/37 缩放�
 11. **checker 的"段落建议"类 warning**（多段短句同区域）对"语义独立的短句"是误报，人工判断后可放行；但 bounds 越界类 warning 必须修。
 12. **探针采样要踩描边**：验证"描边颜色"时坐标取边框线上的值，踩进填充区会误判 FAIL；半透明元素阈值按实际 opacity 调整，别用纯色阈值。
 13. **导出前最后一次改动 SVG 后**，final 报告必须重跑；样式归一化可能改 id，动画验证（§4）也要重做。
+14. **quick-generate 读的是 `svg_output/`，不是 `svg_final/`**；且强制要求当前 svg_output 的 final 质检报告，缺了会直接拒绝导出（按提示补跑即可）。
+15. **强调/路径动画的选项名各有各的拼法**（`color` / `amount` / 角度…），不要凭直觉猜——报错信息会列出支持项；新效果先过一遍最小 PoC。
+
+## 6. 可编辑性审计与讲稿（对标补充）
+
+### 可编辑性审计（交付前最后一道）
+
+业内通用的"压平试纸"（HTML 转图、整页截图类生成器都过不了）：
+
+1. **双击图表** → 能弹出"编辑数据"表格 = 数据绑定的原生图表；只是形状 = SVG 绘制路线（本管线的默认）。
+2. **独立改三样**：一个标题、一个数字、换一张图——三者互不影响 = 未压平。
+3. 本管线的文本/形状天然过 2；但 **SVG 画的图表不含数据表**。若受众可能双击查数（财务、答辩数据页），改走 ppt-master 的 `--native-charts-and-tables` 路线（代价：跨软件渲染可能不一致，需人工复核）。
+
+### 讲稿与备注（生成流程的第 9 步）
+
+Anthropic/Copilot 都会写 speaker notes；本管线默认漏了这步。交付前给每页补 3–5 句讲稿写进 `p:notes`（ppt-master 支持备注→TTS 旁白音轨，可导出自放映版本）。讲稿从每页的"金句 + 论据"直接改写成口语，不另起炉灶。
+
+### 视觉闭环（渲染→审视→修正）
+
+DeepPresenter（PPTAgent 2.0）的核心贡献是"环境感知反思"：生成→渲染→截图→审视→修正。本管线的对应物已内建：quality checker（bounds/重叠/越界）→ render.cjs 预览 → 像素探针/直方图 → 修正重跑。**任何新页面都没有"写完就算完成"，必须过一遍这个闭环**。Anthropic pptx skill 的做法可作参照：逐页渲染 JPG 后按固定维度检查（溢出/重叠/对比度/对齐/风格一致）。
+
+## 7. 对标与选型边界（2026-11 调研）
+
+| 方案 | 一句话定位 | 相对本管线 |
+| --- | --- | --- |
+| Gamma / Canva / Beautiful.ai | 网页卡片，30 秒出稿 | **动效导出即蒸发**；导出 PPTX 失真；中文会"意译润色"数据 |
+| Copilot（PowerPoint 内） | 企业合规、可改可协作 | 动画要人手在 Animation Pane 搭；设计平庸 |
+| Kimi Slides | 长文档→PPT，**图表导出为原生对象** | 无逐对象动画；慢；官方声明不保证事实准确 |
+| Anthropic pptx skill | 稳、改现有稿、XML 增量编辑 | "只有 60 分"（其自我定位）；无 SVG 设计感路线 |
+| ppt-master 全流程 | 文档→原生 PPTX | 本管线 = 其 SVG 路线的手写精修版 |
+| Marp / Slidev / Reveal | 代码化幻灯片 | **PPTX = 每页一张图**，动画只活在浏览器里 |
+
+**本管线的结构性优势（也是存在的理由）**：
+
+1. **原生逐对象动画编排**——市面工具几乎都不做（预设转场 ≠ 编排）；203 种效果 + morph 可用。
+2. **确定性代码框架**（deck_kit 是手写代码，只有内容是 AI 生成的）——避开了"LLM 写 python-pptx 代码→执行→构建"路线的代码注入、不可复现、"修改即重构"三宗罪（WPS 灵犀内置技能被公开批评的正是这条路径）。
+3. **XML 级验收**——多数工作流停在"导出成功"；本管线看 nodeType 口径、悬空引用、编排对照、OPC、交付检查。
+
+**诚实边界（何时不用本管线）**：需要数据绑定的原生图表 → ppt-master `--native-charts-and-tables` 或 Kimi；要改别人的 .pptx → Anthropic pptx 的 XML 增量编辑；纯网页演示 → Slidev/frontend-slides。SmartArt、宏、嵌入视频本管线不支持。
