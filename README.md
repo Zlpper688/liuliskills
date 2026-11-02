@@ -7,19 +7,29 @@
 | Skill | 内容 |
 | --- | --- |
 | [capsule-interface-design](skills/capsule-interface-design/SKILL.md) | 前端胶囊层与外放接口设计规范：回执 = 一句话 + 胶囊；动词胶囊点即生效，变量胶囊只留接口、打开原生选择器；胶囊不内置内容，决策权留给用户 |
+| [native-pptx-craft](skills/native-pptx-craft/SKILL.md) | 原生动画 PPT 制作：手写 SVG → ppt-master 转 DrawingML → 原生 PowerPoint 动画（逐条出现/点击触发/插入编排）+ 五道 XML 级验收；含设计铁律（信息密度四层、去AI味、不踩一捧一）、animations.json 编排 schema、13 条实测坑 |
 
 ## 使用
 
 - **作为技能加载**：把 `skills/<name>/` 放进你的 AI 助手技能目录（如 `.agents/skills/`、`~/.agents/skills/` 等），它会按 frontmatter 里的 description 自动触发。
-- **作为评审清单**：直接把 `SKILL.md` 当作前端交互评审的检查表——重点看「四条核心规则」和「反例」两节。
+- **作为评审清单**：直接把 `SKILL.md` 当作设计评审的检查表——重点看每份规范里的「核心规则」和「反例/踩坑」两节。
 
 ## 目录结构
 
 ```text
-skills/capsule-interface-design/
-├── SKILL.md                    # 规范正文
-└── references/
-    └── research.md             # 与通用设计学知识的对照与出处
+skills/
+├── capsule-interface-design/
+│   ├── SKILL.md                    # 规范正文
+│   └── references/
+│       └── research.md             # 与通用设计学知识的对照与出处
+└── native-pptx-craft/
+    ├── SKILL.md                    # 规范正文（管线八步 + 验收纪律 + 坑速查）
+    ├── references/
+    │   ├── design-principles.md    # 设计思想细则（密度四层/动效叙事/文案口径）
+    │   └── pipeline-and-pitfalls.md# 管线全命令 + animations.json schema + 13 条实测坑
+    └── assets/
+        ├── deck_kit.py             # 可复用 SVG 页面框架（bounds 校验/拟真手机外框）
+        └── render.cjs              # Playwright 批量渲染预览
 ```
 
 ## License
